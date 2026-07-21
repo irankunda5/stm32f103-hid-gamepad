@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>fuseDash // Live Calibration Core</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="hud-frame">
+        <header class="hud-topbar">
+            <div class="brand">SYS_FUSE <span class="brand-accent">// HUD</span></div>
+            <div class="topbar-center">
+                <div class="title-matrix">ANALOG TUNING MATRIX // ACTIVE TELEMETRY CONTROLS</div>
+                <span id="quality-badge" class="badge badge-quality">SIGNAL: --</span>
+            </div>
+            <div class="topbar-actions">
+                <span id="pps-badge" class="badge badge-status-ok">0 pkt/s</span>
+                <div id="hw-badge" class="badge badge-status-err">HARDWARE: OFFLINE</div>
+                <label class="theme-toggle" title="Toggle light/dark theme">
+                    <input type="checkbox" id="theme-switch">
+                    <div class="theme-toggle-track">
+                        <span class="icon-moon">&#9789;</span>
+                        <span class="icon-sun">&#9788;</span>
+                        <div class="theme-toggle-knob"></div>
+                    </div>
+                </label>
+            </div>
+        </header>
+
+        <div class="hud-viewport">
+            <div class="hud-main-panel">
+                <!-- Profile Engine -->
+                <div class="hud-module">
+                    <div class="module-header">PROFILE_MANAGEMENT</div>
+                    <div class="control-row">
+                        <div class="input-group">
+                            <label>Active Profile</label>
+                            <select id="profile-dropdown"></select>
+                        </div>
+                        <div class="input-group">
+                            <label>New Profile</label>
+                            <div class="append-group">
+                                <input type="text" id="profile-name-input" placeholder="Profile name...">
+                                <button id="profile-create-btn">CREATE</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scope Visualizers & Calibration Controls -->
+                <div class="visualizer-grid">
+                    <!-- Left Joystick -->
+                    <div class="hud-module visualization-module">
+                        <div class="module-header">NAV_STICK // LEFT JOYSTICK (SCROLL)</div>
+                        <div class="scope-outer">
+                            <div class="scope-ring-grid"></div>
+                            <div class="axis-x"></div>
+                            <div class="axis-y"></div>
+                            <div id="pip-left" class="scope-pip"></div>
+                        </div>
+                        <div class="hud-numeric-row">
+                            <div class="stat-box"><span class="stat-label">LX</span> <span id="lbl-lx">2048</span></div>
+                            <div class="stat-box"><span class="stat-label">LY</span> <span id="lbl-ly">2048</span></div>
+                        </div>
+
+                        <div class="calibration-deck">
+                            <div class="slider-row">
+                                <label>Smoothing (EMA) <span id="lbl-left-alpha">0.30</span></label>
+                                <input type="range" id="slide-left-alpha" min="0.01" max="1.00" step="0.01" value="0.30">
+                            </div>
+                            <div class="slider-row">
+                                <label>Radial Deadzone <span id="lbl-left-deadzone">0.15</span></label>
+                                <input type="range" id="slide-left-deadzone" min="0.00" max="0.50" step="0.01" value="0.15">
+                            </div>
+                            <div class="slider-row">
+                                <label>Jitter Deadband <span id="lbl-left-deadband">5</span></label>
+                                <input type="range" id="slide-left-deadband" min="0" max="100" step="1" value="5">
+                            </div>
+                            <div class="slider-row">
+                                <label>Asym. Weight <span id="lbl-left-asym">0.50</span></label>
+                                <input type="range" id="slide-left-asym" min="0.00" max="1.00" step="0.01" value="0.50">
+                            </div>
+                            <div class="toggle-container">
+                                <label class="toggle-label">Invert Y-Axis</label>
+                                <label class="cyber-switch">
+                                    <input type="checkbox" id="toggle-left-invert">
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Joystick -->
+                    <div class="hud-module visualization-module">
+                        <div class="module-header">AIM_STICK // RIGHT JOYSTICK (MOUSE)</div>
+                        <div class="scope-outer">
+                            <div class="scope-ring-grid"></div>
+                            <div class="axis-x"></div>
+                            <div class="axis-y"></div>
+                            <div id="pip-right" class="scope-pip"></div>
+                        </div>
+                        <div class="hud-numeric-row">
+                            <div class="stat-box"><span class="stat-label">RX</span> <span id="lbl-rx">2048</span></div>
+                            <div class="stat-box"><span class="stat-label">RY</span> <span id="lbl-ry">2048</span></div>
+                        </div>
+
+                        <div class="calibration-deck">
+                            <div class="slider-row">
+                                <label>Smoothing (EMA) <span id="lbl-right-alpha">0.35</span></label>
+                                <input type="range" id="slide-right-alpha" min="0.01" max="1.00" step="0.01" value="0.35">
+                            </div>
+                            <div class="slider-row">
+                                <label>Radial Deadzone <span id="lbl-right-deadzone">0.10</span></label>
+                                <input type="range" id="slide-right-deadzone" min="0.00" max="0.50" step="0.01" value="0.10">
+                            </div>
+                            <div class="slider-row">
+                                <label>Jitter Deadband <span id="lbl-right-deadband">5</span></label>
+                                <input type="range" id="slide-right-deadband" min="0" max="100" step="1" value="5">
+                            </div>
+                            <div class="slider-row">
+                                <label>Asym. Weight <span id="lbl-right-asym">0.50</span></label>
+                                <input type="range" id="slide-right-asym" min="0.00" max="1.00" step="0.01" value="0.50">
+                            </div>
+                            <div class="toggle-container">
+                                <label class="toggle-label">Invert Y-Axis</label>
+                                <label class="cyber-switch">
+                                    <input type="checkbox" id="toggle-right-invert" checked>
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Signal Diagnostics -->
+                <div class="hud-module">
+                    <div class="module-header">SIGNAL DIAGNOSTICS</div>
+                    <div class="quality-bar-container">
+                        <div id="quality-bar" class="quality-bar-fill" style="width: 0%"></div>
+                    </div>
+                    <div class="diagnostics-grid">
+                        <div class="diag-item">
+                            <span class="diag-label">Noise Floor LX</span>
+                            <span id="diag-nf-lx" class="diag-value">--</span>
+                        </div>
+                        <div class="diag-item">
+                            <span class="diag-label">Noise Floor LY</span>
+                            <span id="diag-nf-ly" class="diag-value">--</span>
+                        </div>
+                        <div class="diag-item">
+                            <span class="diag-label">Noise Floor RX</span>
+                            <span id="diag-nf-rx" class="diag-value">--</span>
+                        </div>
+                        <div class="diag-item">
+                            <span class="diag-label">Noise Floor RY</span>
+                            <span id="diag-nf-ry" class="diag-value">--</span>
+                        </div>
+                        <div class="diag-item">
+                            <span class="diag-label">Spikes Rejected</span>
+                            <span id="diag-spikes" class="diag-value">0</span>
+                        </div>
+                        <div class="diag-item">
+                            <span class="diag-label">Parse Errors</span>
+                            <span id="diag-errors" class="diag-value">0</span>
+                        </div>
+                        <div class="diag-item">
+                            <span class="diag-label">Packets Rejected</span>
+                            <span id="diag-rejected" class="diag-value">0</span>
+                        </div>
+                        <div class="diag-item">
+                            <span class="diag-label">Total Packets</span>
+                            <span id="diag-packets" class="diag-value">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Button Matrix -->
+                <div class="hud-module">
+                    <div class="module-header">REALTIME DIGITAL SIGNAL MATRIX BUS</div>
+                    <div class="button-bus-grid" id="button-matrix-bus"></div>
+                </div>
+            </div>
+
+            <!-- Mapping Config Board -->
+            <aside class="hud-sidebar">
+                <div class="sidebar-header">SIGNAL_ROUTING_TABLE</div>
+                <div id="routing-table-container" class="scrolling-interceptors-list"></div>
+            </aside>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
